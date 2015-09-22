@@ -2,6 +2,7 @@
 A slick little 1 pager that allows you to add, delete, or modify inventory entries and use google sheets &amp; forms as a database for the back end. 
 
 1. Copy these google spreadsheets to your own google drive: 
+    
     Product Info - https://docs.google.com/spreadsheets/d/12HQygaXcNy7aC7uG6g6w5lrSIFJOEHuvNWH92qduKiU
 
     Inventory Location - https://docs.google.com/spreadsheets/d/1zpr9EPaNJ_2FOCCV7ca0iAjjeIV9H59tI6gVNso28qE
