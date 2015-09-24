@@ -1,0 +1,310 @@
+<html>
+<head>
+<script src="http://ajax.googleapis.com/ajax/libs/jquery/1.11.2/jquery.min.js?onload=init"></script>
+<script src="https://apis.google.com/js/auth.js?onload=init"></script>
+</head>
+<body>
+    <!--This section is the main product page-->
+    <p class ="ReturnApp"><span id='title'><strong>BD INVENTORY APP</strong></span></p>
+    <p class ="ReturnApp"><span id='p1'><strong>UPC: </strong><input type="number" id="upc" value="" required></span></p>
+    <p class ="ReturnApp"><span id='p2'><strong>Qty: </strong><input type="number" id="gudQty" value=""></span></p>
+    <p class ="ReturnApp"><span id='p3'><button id="Button1">Recieve Product</button></span></p>
+    <p class ="ReturnApp"><span id='p4'></span></p>
+    <p class ="ReturnApp"><span id='p5'></span></p>
+    <p class ="ReturnApp"><span id='p6'></span></p>
+    <p class ="ReturnApp"><span id='p7'></span></p>
+    <p class ="ReturnApp"><span id='p8'></span></p>
+
+<script type="text/javascript">
+    // Update these String values using the values from your copied Google Sheets.
+    // if this "https://docs.google.com/spreadsheets/d/12HQygaXcNy7aC7uG6g6w5lrSIFJOEHuvNWH92qduKiU/edit?usp=sharing" is the entire url string, you just want "12HQygaXcNy7aC7uG6g6w5lrSIFJOEHuvNWH92qduKiU". 
+        var productInfoSpreadsheetUrlString = "12HQygaXcNy7aC7uG6g6w5lrSIFJOEHuvNWH92qduKiU";
+        var formUrlString = "1GESlEZ1HTFWAGIVFvZl9A6mntXTaauF63-ewCY_Z7y4";
+        var inventoryLocationSpreadsheetUrlString = "1zpr9EPaNJ_2FOCCV7ca0iAjjeIV9H59tI6gVNso28qE";
+        
+    // Global Variables used in the program
+        var upc;
+        var gudQty = 0;
+        var osCurLocation;
+        var osNewLocation;
+        var description = "";
+        var osAction;
+        var totQty = 0;
+        var osCurQty = 0;
+        var osNewQty = 0;
+        var query = encodeURIComponent('select C, D, E where B = ');
+        var osQuery = encodeURIComponent('select A, E where B = ');
+        var logQuery = encodeURIComponent('select A, B, C where D = ');
+        var query2;
+        var qry;
+        var url;
+        var medQty = 0;
+        var osQry;
+        var logQry;
+        var osUrl;
+        var logUrl;
+        var osTimestamp;
+        var logTimestamp;
+        var listener;
+        var desquery = encodeURIComponent('select C where B = ');
+        var desqry;
+        var desurl;
+        var query3;
+    
+    //Listener for first Page Button
+        listener = document.getElementById("Button1").addEventListener("click", function(){
+            myFormula();
+            return false;
+            });
+
+    //Will validate and retrieve values from imput fields, creates location query, initiates description lookup "lookupDes()".
+        function myFormula() {
+            upc = document.getElementById("upc").value;
+            gudQty = document.getElementById("gudQty").value - 0;
+            query2 = encodeURIComponent(upc);
+            qry = query + query2;
+            url = 'http://docs.google.com/a/google.com/spreadsheets/d/'
+                + inventoryLocationSpreadsheetUrlString //spreadsheet ID for the ProductLocationDatabase. 
+                + '/gviz/tq?tqx=out:json&tq='
+                + qry;
+            console.log(upc);
+            console.log(gudQty);//values carried into os check
+            console.log(qry);
+            console.log(url);
+            lookupDes();
+        };
+
+    // Looks up the product description and preps it to be submitted for all other querys. Initiates in current stock check. Triggers osCheck().
+        function lookupDes() {
+        desquery = encodeURIComponent('select C where B = ');
+        query3 = encodeURIComponent("'" + upc + "'");
+        desqry = desquery + query3;
+        desurl = 'http://docs.google.com/a/google.com/spreadsheets/d/'
+        + productInfoSpreadsheetUrlString //spreadsheet ID for the ProductInfoDatabase.
+        + '/gviz/tq?tqx=out:json&tq='
+        + desqry;
+        var request = new XMLHttpRequest();
+            console.log("REQUEST: " + request);
+            request.open('GET', desurl, true);
+
+            request.onload = function() {
+                if (this.status >= 200 && this.status < 400) {
+                    console.log("STATUS: Success!");
+                    //Parses string to pull product description from the ProductInfoDatabase
+                    description = this.response.replace(/([\s\S]+google)|.+("label":")|(Description)|(","type":)+.{1,30}|(\"}]}])+.{1,30}|(")/g,'');
+                    description = description.replace(/(\\u0022)/g,'"');
+                    description = description.replace(/(\\u0027)/g,"'");
+                    console.log(description);
+                    osCheck();
+
+                } else {
+                    console.log("STATUS: Description error - We reached our target server, but it returned an error");
+                }
+            };
+            request.onerror = function() {
+                console.log("There was a connection error of some sort");
+                };
+
+            request.send();
+        osCheck();
+        };
+
+    //Queries the InventoryLocationSpreadsheet and modifies DOM to either the is/isnot in OS page
+        function osCheck() {
+            var request = new XMLHttpRequest();
+            console.log("REQUEST: " + request);
+            request.open('GET', url, true);
+
+            request.onload = function() {
+                if (this.status >= 200 && this.status < 400) {
+                    console.log("STATUS: Success!");
+                    var arry = this.response;
+                    console.log(arry);
+                    var arry2 = '"' + arry.substr(39, arry.length-41) + '"';
+                    console.log(arry2);
+                    var rp1 = arry2.replace(/([\s\S]+"rows)/g,"$");
+                    var rp2 = rp1.replace(/(.+\"[f]\"\:\")/g, "");
+                    var rp3 = rp2.replace(/(\"\}\,\{\"[v]\"\:\"?)/g, "$");
+                    var rp4 = rp3.replace(/(\"?.{1,5}\}\")/g, "");
+                    console.log(rp1);
+                    console.log(rp2);
+                    console.log(rp3);
+                    console.log(rp4);
+                    var array = rp4.split("$")
+                    console.log(array);
+                    osCurQty = array[0] - 0;
+                    osCurLocation = array[1];
+                    var testr = typeof array[2];
+                    medQty = osCurQty - (0);
+                    totQty = medQty + gudQty;
+                    console.log(totQty);
+                    console.log(medQty);
+                    console.log(osCurQty);
+                    console.log(testr);
+                    console.log(upc);
+                    if(typeof array[2] == 'undefined'){//Changes the DOM to the Item not in OS page
+                        document.getElementById('title').innerHTML = '<strong>ITEMS NOT IN OVERSTOCK</strong>';
+                        document.getElementById('p1').innerHTML = '<strong>UPC: </strong>' + upc;
+                        document.getElementById('p2').innerHTML = '<strong>Description: </strong>' + description;
+                        document.getElementById('p3').innerHTML = '<strong>New Total Qty: </strong><input size="5" type="number" id="gudQty" value=' + '"' + gudQty + '"' + 'onfocus=' +'"' + 'if(this.value ==' + gudQty + ") { this.value = ''; }" + '">';
+                        document.getElementById('p4').innerHTML = '<strong>Location: </strong><input size="8" type="text" id="location" pattern="/^[O]{1}[1-9|B]{1}[R]{1}[1-9]{1}[S]{1}[1-9]{1}$/" required>';
+                        document.getElementById('p5').innerHTML = '<button id="InsertButton" onclick="insertToOs()">Add Items to OS</button>';
+                    }else{ //Changes the DOM to the Item not in OS page
+                        document.getElementById('title').innerHTML = '<strong>ITEMS IS IN OVERSTOCK</strong>';
+                        document.getElementById('p2').innerHTML = '<strong>UPC: </strong>' + upc;
+                        document.getElementById('p3').innerHTML = '<strong>Description: </strong>' + description;
+                        document.getElementById('p4').innerHTML = '<strong>Current Location: </strong>' + osCurLocation;
+                        document.getElementById('p5').innerHTML = '<strong>Qty on Shelf: </strong>' + osCurQty;
+                        document.getElementById('p6').innerHTML = '<strong>New Total Qty: </strong><input size="5" type="number" id="totalQty" value=' + '"' + totQty + '"' +  'onfocus=' +'"' + 'if(this.value ==' + totQty + ") { this.value = ''; }" + '">';
+                        document.getElementById('p7').innerHTML = '<strong>New Location: </strong><input size="8" type="text" id="newLocation" pattern="/^$|^[O]{1}[1-9|B]{1}[R]{1}[1-9]{1}[S]{1}[1-9]{1}$/" value=' + '"' + osCurLocation + '"' +  'onfocus=' +'"' + 'if(this.value == ' + '"' + osCurLocation + '"' + ") { this.value = ''; }" + '">';
+                        document.getElementById('p8').innerHTML = '<button id="UpdateButton" onclick="updateToOs()">Update OS with New Info</button>';
+                        document.getElementById('p1').innerHTML = '<button id="DeleteButton" onclick="deleteFromOs()">Remove Product from OS</button>';
+                    }
+                } else {
+                    console.log("STATUS: ERROR - We reached our target server, but it returned an error");
+                }
+            };
+            request.onerror = function() {
+                console.log("There was a connection error of some sort");
+                };
+
+            request.send();
+            console.log("ref'd Info: " + totQty);
+        }
+
+    //Will prepare the items for inserting into the overstock spreadsheet ,set DOM to the review page.
+        function insertToOs() {
+            osAction = 'INSERT';
+            osNewQty = osNewQty = document.getElementById("gudQty").value;
+            osNewLocation = document.getElementById("location").value;
+            sendToOs();
+            console.log("inserttoos:" + osNewLocation + "; " + osAction + "; " + osNewQty);
+        };
+
+    //Will prepare the items for updating to the overstock spreadsheet ,set DOM to the review page.
+        function updateToOs() {
+            osAction = 'UPDATE';
+            osNewQty = document.getElementById("totalQty").value;
+            osNewLocation = document.getElementById("newLocation").value;
+            sendToOs();
+            console.log("update:" + osNewLocation + "; " + osAction + "; " + osNewQty);
+        };
+    
+    //Submits a string with the Delete action to initiate removal of an entry. 
+        function deleteFromOs() {
+            if (description = '') {
+                description = 'Unknown';
+            };
+            osAction = 'DELETE';
+            osNewQty = 1;
+            osNewLocation = 'O3R2S2';
+            medQty = "Removed";
+            gudQty = "Removed";
+            sendToOs();
+            console.log("delete:" + osNewLocation + "; " + osAction + "; " + osNewQty);
+        };
+
+    //Will send the items to be updated on the overstock spreadsheet to the correct FormSubmission fields. 
+        function sendToOs() {
+            var field1 = upc;
+            var field2 = osNewQty;
+            var field3 = osNewLocation;
+            var field4 = description;
+            var field5 = osAction;
+
+             $.ajax({
+                method: "POST",
+                url: 'https://docs.google.com/forms/d/' + formUrlString + '/formResponse',
+                xhrFields: {
+                   withCredentials: false
+                },
+/* In the next section the "entry.xxxxxxxxxx" fields are the form submission fields. Replace each entry with your own fields. **if you copied my spreadsheets directly you should't have to do this. They should still be correct.   */
+                data: {"entry.1762797086": field1, "entry.654788769": field2, "entry.1509756251": field3, "entry.1182032424": field4, "entry.1744093610": field5},
+                dataType: "xml",
+                statusCode: {
+                    0: function() {
+                        //Success message
+                    },
+                    200: function() {
+                        //Success Message
+                    }
+                }
+            });
+            console.log("osSuccess!");
+            finalPage();
+            var logtimeoutid;
+            logtimeoutid = window.setTimeout(osTimestampQuery, 1000);
+        };
+    // This function pulls the timestamp verfying that the OS was successfully updated.
+        function osTimestampQuery() {
+            osQry = osQuery + query2;
+            osUrl ='http://docs.google.com/a/google.com/spreadsheets/d/'
+            + inventoryLocationSpreadsheetUrlString
+            + '/gviz/tq?tqx=out:json&tq='
+            + osQry;
+
+            var request = new XMLHttpRequest();
+            console.log("REQUEST: " + request);
+            request.open('GET', osUrl, true);
+
+            request.onload = function() {
+                if (this.status >= 200 && this.status < 400) {
+                    console.log("STATUS: Success!");
+                    var arry = this.response;
+                    console.log(arry);
+                    var arry2 = '"' + arry.substr(39, arry.length-41) + '"';
+                    console.log(arry2);
+                    var rp1 = arry2.replace(/([\s\S]+"rows)/g,"$");
+                    var rp2 = rp1.replace(/(.+\"[f]\"\:\")/g, "");
+                    var rp3 = rp2.replace(/(\"\}\,\{\"[v]\"\:\"?)/g, "$");
+                    var rp4 = rp3.replace(/(\"?.{1,5}\}\")/g, "");
+                    console.log(rp1);
+                    console.log(rp2);
+                    console.log(rp3);
+                    console.log(rp4);
+                    var array = rp4.split("$")
+                    console.log(array);
+                    osTimestamp = array[0];
+                    document.getElementById('p2').innerHTML = '<strong>Added OS: </strong>' + osTimestamp;
+                    console.log(osTimestamp);
+                } else {
+                    console.log("STATUS: ERROR - We reached our target server, but it returned an error");
+                    document.getElementById('p2').innerHTML = '<strong>Added OS: </strong>' + "STATUS: ERROR - We reached our target server, but it returned an error";
+                }
+            };
+            request.onerror = function() {
+                console.log("There was a connection error of some sort");
+                };
+            request.send();
+        }
+
+    //Sets up the final view page
+        function finalPage() {
+            document.getElementById('title').innerHTML = '<strong>INVENTORY SUMMARY</strong>';
+            document.getElementById('p1').innerHTML = '<table><tr><th >Description:</th><td>' + description + '</td> </tr><tr><th>UPC:</th><td>' + upc + '</td></tr><tr><th>Location:</th><td>' + osNewLocation + '</td></tr><tr><th><br></th></tr><tr><th>Old Qty:</th><td>' + medQty + '</td></tr><tr><th>Qty Added:</th><td>' + gudQty + '</td></tr><tr><th>New Total Qty:</th><td>' + osNewQty + '</td></tr></table>';
+            document.getElementById('p2').innerHTML = '<strong>Added OS: </strong>' + "looking up.....";
+            document.getElementById('p3').innerHTML = '<button id="NewUPCButton" onclick="newUPC()"> NEW UPC </button>';
+            document.getElementById('p4').innerHTML = '<button id="RefreshTS" onclick="tsrefresh()">Check Timestamps</button>';
+            document.getElementById('p5').innerHTML = "";
+            document.getElementById('p6').innerHTML = "";
+            document.getElementById('p7').innerHTML = "";
+            document.getElementById('p8').innerHTML = "";
+        };
+    
+    //Refreshes the timestamp to verify entry. 
+        function tsrefresh() {
+            osTimestampQuery();
+        };
+
+    //Resets the page to retrieve product page.
+        function newUPC(){
+            document.getElementById('title').innerHTML = '<strong>BD INVENTORY APP</strong>';
+            document.getElementById('p1').innerHTML = '<strong>UPC: </strong><input type="number" id="upc" value="" required>';
+            document.getElementById('p2').innerHTML = '<strong>Qty: </strong><input type="number" id="gudQty" value="">';
+            document.getElementById('p3').innerHTML = '<button id="Button1" onclick="myFormula()">Recieve Product</button>';
+            document.getElementById('p4').innerHTML = '';
+        };
+
+</script>
+</body>
+</html>
